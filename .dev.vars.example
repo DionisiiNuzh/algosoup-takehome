@@ -1,0 +1,3 @@
+# Copy to .dev.vars for local server-side secrets.
+# Add actual provider-specific keys here when the integrations are implemented.
+# Production secrets: npx wrangler secret put SECRET_NAME
