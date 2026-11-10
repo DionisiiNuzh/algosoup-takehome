@@ -2,7 +2,7 @@
 
 Product requirements: [PRODUCT_SPEC.md](PRODUCT_SPEC.md).
 
-This repository contains the deployment scaffold and a working review-fetch API, not the completed app.
+This repository contains a live review-import frontend and API, not the completed app.
 Cloudflare Workers serves the Vite build in `dist/` and routes `/api/*` to `src/worker.ts`.
 The health endpoint is `/api/health`. Unknown API routes return JSON 404s.
 
@@ -43,6 +43,23 @@ The endpoint currently returns data without storing it. Recommended next step:
 connect a Cloudflare D1 database for imports, reviews, issues, and task state.
 Keep import-to-review links so counts remain tied to each imported sample.
 
+## Frontend review import
+
+The import form calls `POST /api/reviews` and displays actual returned counts and
+reviews. `ReviewList` in `src/frontend/components/ReviewList.tsx` is a reusable
+widget accepting `reviews: Review[]` and an optional `pageSize` (default 10).
+Pagination browses the imported sample locally without additional API calls.
+It shows original text, author, rating, date, helpful votes, app version,
+developer reply, and Google Play source links when available.
+
+Imports and selected app are saved in browser storage under `reviewroom-live-v1`.
+Old demo data stays separate. Upstream errors are shown with no sample fallback.
+Categorisation is pending; the live import screen does not generate issue groups
+or task briefs. The widget can remain mounted alongside future categorisation.
+
+Browser verification against the local Worker fetched 200 real reviews, checked
+all 20 pages, refresh persistence, upstream-error handling, and mobile overflow.
+
 ## Local development
 
 Use Node.js 22 or newer.
@@ -50,12 +67,19 @@ Use Node.js 22 or newer.
 ```bash
 npm ci
 cp .dev.vars.example .dev.vars
-npm run build
-npm run dev:worker
+npm run dev
 ```
 
-Run `npm run dev` in a second terminal for the Vite frontend with hot reload.
-Vite proxies `/api/*` to the local Worker at port 8787.
+`npm run dev` builds assets, then starts both the Worker backend and the Vite
+frontend with hot reload. Wait until both servers report ready and open the Vite
+URL printed in the terminal. Stopping the command stops both child processes.
+Vite proxies `/api/*` to the Worker at `127.0.0.1:8787`.
+
+For separate terminals, run `npm run build`, then `npm run dev:worker` in one
+terminal and `npm run dev:web` in another. Running only `dev:web` does not start
+the backend. An unavailable backend returns a descriptive JSON 503 response;
+a Google Play fetch failure returns JSON 502 from the Worker. Localhost is
+supported and does not require a Cloudflare deployment.
 
 Implement server routes in `src/worker.ts`. The React + TypeScript frontend is
 in `src/frontend/`, with components, workflow hooks, API/storage helpers, shared

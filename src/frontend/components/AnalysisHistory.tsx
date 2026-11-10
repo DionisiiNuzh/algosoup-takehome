@@ -15,7 +15,7 @@ export function AnalysisHistory({
       <a className="brand" href="/">
         Review analysis
       </a>
-      <div className="nav-label history-label">ANALYZED APPS</div>
+      <div className="nav-label history-label">IMPORTED APPS</div>
       <div id="analysis-history">
         {history.map((a) => (
           <button
@@ -25,12 +25,12 @@ export function AnalysisHistory({
             onClick={() => onSelect(a.url)}
           >
             <strong>{a.app}</strong>
-            <small>{a.count} sample reviews</small>
+            <small>{a.count} imported reviews</small>
           </button>
         ))}
       </div>
       {history.length === 0 && (
-        <p id="history-empty">Analyzed apps will appear here.</p>
+        <p id="history-empty">Imported apps will appear here.</p>
       )}
     </aside>
   );

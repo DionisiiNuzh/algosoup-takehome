@@ -1,5 +1,4 @@
 import type { ReviewImport } from "../types";
-// Ready for the live-import workflow. The demo does not call this endpoint.
 export async function importReviews(
   app: string,
   count: number,
@@ -11,7 +10,23 @@ export async function importReviews(
     body: JSON.stringify({ app, count }),
     signal,
   });
-  if (!response.ok)
-    throw new Error(`Review import failed (${response.status})`);
-  return response.json();
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(
+      typeof body?.error === "string"
+        ? body.error
+        : `Review import failed (${response.status}). Please try again.`,
+    );
+  }
+  if (
+    !body ||
+    !Array.isArray(body.reviews) ||
+    typeof body.appId !== "string" ||
+    typeof body.fetchedCount !== "number"
+  ) {
+    throw new Error(
+      "The server returned an invalid review response. Please try again.",
+    );
+  }
+  return body as ReviewImport;
 }

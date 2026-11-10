@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { loadState, saveState } from "../lib/storage";
+import { importReviews } from "../lib/api";
 import type { Analysis, AnalysisPhase, Issue, Task } from "../types";
 export function taskFor(analysis: Analysis, issue: Issue): Task {
   return (
@@ -16,27 +17,26 @@ export function useAnalysis() {
   const [phase, setPhase] = useState<AnalysisPhase>(
     current ? "success" : "idle",
   );
-  const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   const [storageAvailable, setStorageAvailable] = useState(true);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeRequest = useRef<AbortController | null>(null);
   const busy = useRef(false);
   useEffect(() => {
     setStorageAvailable(saveState(saved));
   }, [saved]);
   useEffect(
     () => () => {
-      if (timer.current) clearTimeout(timer.current);
+      activeRequest.current?.abort();
     },
     [],
   );
-  function analyze(input: string, count: number) {
+  async function analyze(input: string, count: number) {
     if (busy.current) return;
     let url: URL;
     try {
       url = new URL(input);
       if (
-        !["https:", "http:"].includes(url.protocol) ||
+        url.protocol !== "https:" ||
         url.hostname !== "play.google.com" ||
         url.pathname !== "/store/apps/details" ||
         !url.searchParams.get("id") ||
@@ -53,30 +53,39 @@ export function useAnalysis() {
     busy.current = true;
     setError("");
     setPhase("loading");
-    setProgress(0);
-    let step = 0;
-    function tick() {
-      if (step < 5) {
-        step++;
-        setProgress(step * 20);
-        timer.current = setTimeout(tick, 650);
-        return;
-      }
+    const controller = new AbortController();
+    activeRequest.current = controller;
+    try {
+      const imported = await importReviews(url.href, count, controller.signal);
+      if (controller.signal.aborted) return;
       const analysis: Analysis = {
-        url: url.href,
-        app: url.searchParams.get("id")!,
-        count,
+        url: `https://play.google.com/store/apps/details?id=${encodeURIComponent(imported.appId)}`,
+        app: imported.appId,
+        count: imported.fetchedCount,
+        imported,
         tasks: {},
       };
       setSaved((s) => ({
         history: [analysis, ...s.history.filter((a) => a.url !== analysis.url)],
         selectedUrl: analysis.url,
       }));
-      busy.current = false;
       setPhase("success");
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Could not import reviews. Please try again.",
+      );
+      setPhase("error");
+    } finally {
+      if (activeRequest.current === controller) {
+        activeRequest.current = null;
+        busy.current = false;
+      }
     }
-    timer.current = setTimeout(tick, 650);
   }
+
   function select(url: string) {
     if (busy.current) return;
     setSaved((s) => ({ ...s, selectedUrl: url }));
@@ -108,7 +117,6 @@ export function useAnalysis() {
     current,
     history: saved.history,
     phase,
-    progress,
     error,
     storageAvailable,
     analyze,

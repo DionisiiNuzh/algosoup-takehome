@@ -2,13 +2,11 @@ import { useState } from "react";
 import { AnalysisHistory } from "./components/AnalysisHistory";
 import { ImportForm } from "./components/ImportForm";
 import { AnalysisProgress } from "./components/AnalysisProgress";
-import { AnalysisResults } from "./components/AnalysisResults";
-import { IssueDialog } from "./components/IssueDialog";
-import { taskFor, useAnalysis } from "./hooks/useAnalysis";
-import type { Issue } from "./types";
+import { ReviewList } from "./components/ReviewList";
+import { useAnalysis } from "./hooks/useAnalysis";
+
 export default function App() {
   const model = useAnalysis();
-  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [requestedCount, setRequestedCount] = useState(100);
   const busy = model.phase === "loading";
   return (
@@ -23,17 +21,20 @@ export default function App() {
         <header>
           <span>
             Workspace <span className="slash">/</span>{" "}
-            <strong>Review analysis</strong>
+            <strong>Review imports</strong>
           </span>
           <span className="demo-badge">
-            <i /> Interactive demo
+            <i /> Live Google Play reviews
           </span>
         </header>
         <main>
           <div className="page-heading">
             <div>
               <h1>App reviews</h1>
-              <p>Import reviews, inspect issues, and create tasks.</p>
+              <p>
+                Import the latest Google Play reviews and inspect the original
+                feedback.
+              </p>
             </div>
           </div>
           <ImportForm
@@ -42,47 +43,52 @@ export default function App() {
             error={model.error}
             onAnalyze={(url, count) => {
               setRequestedCount(count);
-              model.analyze(url, count);
+              void model.analyze(url, count);
             }}
           />
           {busy ? (
-            <AnalysisProgress
-              progress={model.progress}
-              count={requestedCount}
-            />
+            <AnalysisProgress count={requestedCount} />
           ) : model.current ? (
-            <AnalysisResults
-              key={model.current.url}
-              analysis={model.current}
-              onReset={model.reset}
-              onOpen={setSelectedIssue}
-            />
+            <section id="results">
+              <div className="results-heading">
+                <div>
+                  <span className="eyebrow">IMPORT RESULTS</span>
+                  <h2>Latest reviews</h2>
+                  <p>
+                    {model.current.app} · English / United Kingdom · Newest
+                    first
+                  </p>
+                </div>
+                <button className="secondary" onClick={model.reset}>
+                  New import ↗
+                </button>
+              </div>
+              <p role="status">
+                Retrieved {model.current.imported.fetchedCount} of{" "}
+                {model.current.imported.requestedCount} requested reviews.
+              </p>
+              <p className="categorisation-note">
+                Categorisation has not started. Browse the imported reviews
+                below.
+              </p>
+              <ReviewList
+                key={`${model.current.url}:${model.current.imported.fetchedAt}`}
+                reviews={model.current.imported.reviews}
+              />
+            </section>
           ) : (
             <section className="empty-state">
-              <h2>No analysis selected</h2>
-              <p>Enter an app link to start an analysis.</p>
-              <p className="demo-note">
-                Demo uses sample reviews. Live review import is not connected.
-              </p>
+              <h2>No reviews imported</h2>
+              <p>Enter an app link to fetch its latest reviews.</p>
             </section>
           )}
           {!model.storageAvailable && (
             <p role="status">
-              Browser storage unavailable. Changes will not survive a refresh.
+              Browser storage unavailable. Imports will not survive a refresh.
             </p>
           )}
         </main>
       </div>
-      {selectedIssue && model.current && (
-        <IssueDialog
-          key={selectedIssue.id}
-          issue={selectedIssue}
-          task={taskFor(model.current, selectedIssue)}
-          storageAvailable={model.storageAvailable}
-          onClose={() => setSelectedIssue(null)}
-          onUpdate={(changes) => model.updateTask(selectedIssue, changes)}
-        />
-      )}
     </>
   );
 }

@@ -12,13 +12,13 @@ export function ImportForm({
   onAnalyze: (url: string, count: number) => void;
 }) {
   const [url, setUrl] = useState(current?.url ?? "");
-  const [count, setCount] = useState(current?.count ?? 100);
+  const [count, setCount] = useState(current?.imported.requestedCount ?? 100);
   useEffect(() => {
     if (current) {
       setUrl(current.url);
-      setCount(current.count);
+      setCount(current.imported.requestedCount);
     }
-  }, [current?.url, current?.count]);
+  }, [current?.url, current?.imported.requestedCount]);
   return (
     <section className="import-card">
       <div className="section-title">
@@ -62,17 +62,17 @@ export function ImportForm({
           </select>
           <button className="primary" id="analyze-button" disabled={busy}>
             {busy ? (
-              "Analyzing…"
+              "Importing…"
             ) : (
               <>
-                Analyze reviews <span>↗</span>
+                Import reviews <span>↗</span>
               </>
             )}
           </button>
         </div>
         <div className="form-footer">
-          <span id="form-note">◉ Google Play · English · United States</span>
-          <span>20–200 recent reviews per analysis</span>
+          <span id="form-note">◉ Google Play · English · United Kingdom</span>
+          <span>20–200 latest reviews per import</span>
         </div>
         {error && (
           <p id="form-error" role="alert">

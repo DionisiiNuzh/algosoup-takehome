@@ -1,3 +1,4 @@
+import type { ReviewImport } from "../types/reviews";
 export type TaskStatus = "New" | "Planned" | "Resolved";
 export interface Task {
   status: TaskStatus;
@@ -18,6 +19,7 @@ export interface Analysis {
   app: string;
   count: number;
   tasks: Record<string, Task>;
+  imported: ReviewImport;
 }
 export interface SavedState {
   history: Analysis[];

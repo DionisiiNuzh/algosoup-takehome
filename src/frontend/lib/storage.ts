@@ -1,12 +1,18 @@
 import type { Analysis, SavedState, Task } from "../types";
-const key = "reviewroom";
+const key = "reviewroom-live-v1";
 function isAnalysis(value: unknown): value is Analysis {
   if (!value || typeof value !== "object") return false;
   const a = value as Partial<Analysis>;
   return (
     typeof a.url === "string" &&
     typeof a.app === "string" &&
-    typeof a.count === "number"
+    typeof a.count === "number" &&
+    !!a.imported &&
+    Array.isArray(a.imported.reviews) &&
+    a.imported.reviews.every(
+      (review) =>
+        typeof review.reviewId === "string" && typeof review.text === "string",
+    )
   );
 }
 function normalize(a: Analysis): Analysis {
@@ -27,7 +33,7 @@ export function loadState(): SavedState {
     const history: Analysis[] = Array.isArray(saved.history)
       ? saved.history.filter(isAnalysis).map(normalize)
       : [];
-    // Preserve history, active analysis, and edits from the original frontend.
+    // Restore only live imports; demo data uses a separate storage key.
     if (isAnalysis(saved) && !history.some((a) => a.url === saved.url))
       history.push(normalize(saved));
     const selectedUrl =
