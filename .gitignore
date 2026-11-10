@@ -13,3 +13,4 @@ coverage/
 .aws/
 .codex/
 .agents/
+dist-worker/

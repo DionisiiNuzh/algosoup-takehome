@@ -15,3 +15,9 @@ The take-home rejects simple LLM wrappers. This product must have a real review 
 
 ## Implementation guidance for agents
 This file governs product scope. Choose the simplest deployable stack and reliable integration that fit the time limit. Coordinate around the shared data model and complete the core flow before adding polish. Record material scope changes here so agents share the same requirements.
+
+## Frontend scope decisions
+- No accounts, sign-in, profiles, or workspace management in the one-hour MVP.
+- Use functional headings and concise instructions; omit marketing copy.
+- The left sidebar lists previously analyzed companies/apps and opens their saved results.
+- The current frontend demonstrates the flow with explicitly labeled sample data and browser-local history, task edits, and statuses. Real import, analysis, and durable server storage remain required for the full MVP.
