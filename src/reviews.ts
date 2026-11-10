@@ -47,12 +47,12 @@ export function parseAppId(app: unknown): string {
 
 /** Fetch a bounded sample of the latest public reviews. Does not persist data. */
 export async function fetchLatestReviews(
-  { app, count = 100 }: FetchReviewsInput,
+  { app, count = 10 }: FetchReviewsInput,
   scraper: ReviewScraper = gplay,
 ): Promise<ReviewImport> {
   const appId = parseAppId(app);
-  if (typeof count !== 'number' || !Number.isInteger(count) || count < 20 || count > 200) {
-    throw new ReviewInputError('count must be an integer between 20 and 200');
+  if (typeof count !== 'number' || !Number.isInteger(count) || count < 1 || count > 200) {
+    throw new ReviewInputError('count must be an integer between 1 and 200');
   }
   const { data } = await scraper.reviews({
     appId,

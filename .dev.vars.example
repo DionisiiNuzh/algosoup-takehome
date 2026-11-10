@@ -1,3 +1,5 @@
-# Copy to .dev.vars for local server-side secrets.
-# Add actual provider-specific keys here when the integrations are implemented.
-# Production secrets: npx wrangler secret put SECRET_NAME
+# Copy to .dev.vars; never commit actual keys.
+ANTHROPIC_API_KEY=
+# Optional override; defaults to claude-haiku-5-5.
+# ANTHROPIC_MODEL=claude-haiku-5-5
+# Production: npx wrangler secret put ANTHROPIC_API_KEY

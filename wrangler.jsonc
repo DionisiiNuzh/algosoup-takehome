@@ -5,6 +5,10 @@
   "compatibility_date": "2026-11-09",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
+  "durable_objects": {
+    "bindings": [{ "name": "ANALYSES", "class_name": "ReviewAnalysis" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ReviewAnalysis"] }],
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",

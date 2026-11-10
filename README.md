@@ -9,13 +9,13 @@ The health endpoint is `/api/health`. Unknown API routes return JSON 404s.
 ## Fetch latest Google Play reviews
 
 `POST /api/reviews` accepts JSON with `app` (an Android package ID or HTTPS
-Google Play app details URL) and `count` (integer, default 100, range 20–200).
+Google Play app details URL) and `count` (integer, default 10, range 1–200).
 Reviews are fetched newest first with fixed English/GB settings.
 
 ```bash
 curl http://localhost:8787/api/reviews \
   -H 'Content-Type: application/json' \
-  -d '{"app":"com.virginmedia.android.youraccount","count":100}'
+  -d '{"app":"com.virginmedia.android.youraccount","count":10}'
 ```
 
 The response includes `appId`, `language`, `country`, `sort`, `requestedCount`,
@@ -39,9 +39,7 @@ Run `npm test` for validation, normalization, deduplication, and API error check
 Tests run TypeScript through Node's type stripping. `npm run check` runs strict
 type checking for both the frontend and Worker; the Worker configuration is
 `tsconfig.worker.json`. Wrangler bundles `src/worker.ts` for deployment.
-The endpoint currently returns data without storing it. Recommended next step:
-connect a Cloudflare D1 database for imports, reviews, issues, and task state.
-Keep import-to-review links so counts remain tied to each imported sample.
+The import-only endpoint returns data without storing it. Use `/api/analyses` for the persisted categorisation flow below.
 
 ## Frontend review import
 
@@ -59,6 +57,31 @@ or task briefs. The widget can remain mounted alongside future categorisation.
 
 Browser verification against the local Worker fetched 200 real reviews, checked
 all 20 pages, refresh persistence, upstream-error handling, and mobile overflow.
+
+## Categorisation Worker
+
+Copy `.dev.vars.example` to `.dev.vars` and set `ANTHROPIC_API_KEY` locally. Production:
+
+```bash
+npx wrangler secret put ANTHROPIC_API_KEY
+npm run deploy
+```
+
+The default model is `claude-haiku-5-5`; optionally override `ANTHROPIC_MODEL` in local vars or as a Worker secret. Keys never go to the browser. Review text is sent to Anthropic for classification.
+
+The frontend's Analyse reviews action calls `POST /api/analyses` with `{ "app": "com.example.app", "count": 5 }`. Any integer count from 1 to 200 is supported. This imports reviews, persists them, and returns an analysis ID and initial snapshot with HTTP 201. If the model key is missing, it returns 503 before fetching reviews.
+
+- `GET /api/analyses/:id`: full snapshot, original reviews, categories, evidence assignments and tasks.
+- `POST /api/analyses/:id/resume`: resume a paused analysis at the unsaved review.
+- `PATCH /api/analyses/:id/tasks/:categoryId`: save `{ "status": "Planned", "brief": "Edited task" }`.
+
+Each analysis begins with an empty catalogue. A Durable Object alarm classifies one review at a time against the catalogue discovered so far, validates exact evidence, and commits categories, assignments and the progress cursor in one SQLite transaction. Reviews can support multiple specific issues and contain praise/non-actionable feedback. Counts use unique saved review links and the actual imported sample as denominator. Category descriptions and suggested investigations are established when each category is first discovered; they are not a separate final synthesis call.
+
+Transient provider failures and invalid output get up to three attempts per review with backoff; authentication and other non-retryable errors pause immediately. Resume is explicit. Processing continues after closing the tab, and history in the same browser reloads server progress. There is no cross-analysis catalogue, broad grouping, merging or batching. Task edits persist after clicking Save task.
+
+Analysis IDs are unguessable access links, with no accounts in this MVP. Browser-local history is the discovery mechanism; clearing it loses those pointers, though server records remain retrievable by ID. Creating an analysis is currently public and incurs provider calls; restrict access at Cloudflare before sharing beyond a controlled demo.
+
+`npm test` covers classification validation, multi-issue links, sequential catalogue reuse, retries/resume, atomic persistence and task restoration. Tests use SQLite and mocked model responses; they do not spend provider credits.
 
 ## Local development
 
@@ -90,9 +113,7 @@ types, demo fixtures, and CSS in separate files. `index.html` is the Vite entry.
 Use Worker-compatible dependencies; Node compatibility does not provide a
 traditional persistent Node server or writable durable filesystem.
 
-The product needs persistent storage. Add a Cloudflare D1 database (or another
-durable store), its binding, and migrations when implementing the data model;
-this scaffold does not provision a database or implement persistence.
+SQLite-backed Durable Objects store analysis data. The `ANALYSES` binding and class migration are in `wrangler.jsonc`; no separate D1 provisioning is needed. Local Wrangler storage lives under `.wrangler/` and is separate from production.
 
 ## Initialize Git
 
@@ -132,7 +153,7 @@ Cloudflare account and prints the live URL. The Worker name is
 
 Keep local server secrets in `.dev.vars`. Set production secrets individually
 with `npx wrangler secret put SECRET_NAME`; never put credentials in frontend
-code or Wrangler configuration. No credentials are required for the scaffold.
+code or Wrangler configuration. Categorisation requires the server-side `ANTHROPIC_API_KEY` secret. Review-only imports do not require it.
 
 For automatic deployment later, connect the pushed repository through
 Cloudflare Workers & Pages → Create → Import a repository. Use `main` as the
@@ -141,7 +162,6 @@ production branch, the repository root as the root directory, and
 
 Before submitting, verify the full product flow and refresh persistence against
 the deployed app, then include its URL, the repository URL, and the required
-agent logs. Neither a remote repository nor a live deployment has been created
-by this setup.
+agent logs. Check your Cloudflare account for the deployed Worker URL after deployment.
 
 Cloudflare reference: [Workers static assets](https://developers.cloudflare.com/workers/static-assets/).

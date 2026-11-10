@@ -12,13 +12,13 @@ function reviewDate(value: string | null): string {
 /** Paginate an imported sample locally, independently of categorisation state. */
 export function ReviewList({
   reviews,
-  pageSize = 10,
+  pageSize = 5,
 }: {
   reviews: Review[];
   pageSize?: number;
 }) {
   const [selectedPage, setSelectedPage] = useState(1);
-  const size = Number.isInteger(pageSize) && pageSize > 0 ? pageSize : 10;
+  const size = Number.isInteger(pageSize) && pageSize > 0 ? pageSize : 5;
   const pageCount = Math.max(1, Math.ceil(reviews.length / size));
   const page = Math.min(selectedPage, pageCount);
   const start = (page - 1) * size;

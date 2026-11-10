@@ -2,12 +2,13 @@ import { useState } from "react";
 import { AnalysisHistory } from "./components/AnalysisHistory";
 import { ImportForm } from "./components/ImportForm";
 import { AnalysisProgress } from "./components/AnalysisProgress";
+import { CategoryResults } from "./components/CategoryResults";
 import { ReviewList } from "./components/ReviewList";
 import { useAnalysis } from "./hooks/useAnalysis";
 
 export default function App() {
   const model = useAnalysis();
-  const [requestedCount, setRequestedCount] = useState(100);
+  const [requestedCount, setRequestedCount] = useState(10);
   const busy = model.phase === "loading";
   return (
     <>
@@ -32,8 +33,8 @@ export default function App() {
             <div>
               <h1>App reviews</h1>
               <p>
-                Import the latest Google Play reviews and inspect the original
-                feedback.
+                Discover specific issues in recent Google Play reviews and
+                inspect their original evidence.
               </p>
             </div>
           </div>
@@ -67,10 +68,19 @@ export default function App() {
                 Retrieved {model.current.imported.fetchedCount} of{" "}
                 {model.current.imported.requestedCount} requested reviews.
               </p>
-              <p className="categorisation-note">
-                Categorisation has not started. Browse the imported reviews
-                below.
-              </p>
+              {model.current.categorisation ? (
+                <CategoryResults
+                  key={model.current.categorisation.id}
+                  analysis={model.current.categorisation}
+                  reviews={model.current.imported.reviews}
+                  onResume={model.resume}
+                  onSaveTask={model.updateCategoryTask}
+                />
+              ) : (
+                <p className="categorisation-note">
+                  Start a new analysis to categorise these reviews.
+                </p>
+              )}
               <ReviewList
                 key={`${model.current.url}:${model.current.imported.fetchedAt}`}
                 reviews={model.current.imported.reviews}

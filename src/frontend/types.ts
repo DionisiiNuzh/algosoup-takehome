@@ -20,6 +20,7 @@ export interface Analysis {
   count: number;
   tasks: Record<string, Task>;
   imported: ReviewImport;
+  categorisation?: import("../types/categories").Categorisation;
 }
 export interface SavedState {
   history: Analysis[];

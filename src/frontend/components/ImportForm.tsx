@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
 import type { Analysis } from "../types";
+const initialCount = (count?: number) =>
+  count !== undefined && Number.isInteger(count) && count >= 1 && count <= 200
+    ? count
+    : 10;
+
 export function ImportForm({
   current,
   busy,
@@ -12,11 +17,13 @@ export function ImportForm({
   onAnalyze: (url: string, count: number) => void;
 }) {
   const [url, setUrl] = useState(current?.url ?? "");
-  const [count, setCount] = useState(current?.imported.requestedCount ?? 100);
+  const [count, setCount] = useState(
+    initialCount(current?.imported.requestedCount),
+  );
   useEffect(() => {
     if (current) {
       setUrl(current.url);
-      setCount(current.imported.requestedCount);
+      setCount(initialCount(current.imported.requestedCount));
     }
   }, [current?.url, current?.imported.requestedCount]);
   return (
@@ -40,6 +47,7 @@ export function ImportForm({
           <div className="url-input">
             <span>↗</span>
             <input
+              disabled={busy}
               value={url}
               onChange={(event) => setUrl(event.target.value)}
               id="app-url"
@@ -49,30 +57,30 @@ export function ImportForm({
               aria-describedby="form-note"
             />
           </div>
-          <select
+          <input
+            disabled={busy}
+            type="number"
+            min={1}
+            max={200}
+            required
             value={count}
             onChange={(event) => setCount(Number(event.target.value))}
             id="review-limit"
             aria-label="Number of reviews"
-          >
-            <option value="20">20 reviews</option>
-            <option value="50">50 reviews</option>
-            <option value="100">100 reviews</option>
-            <option value="200">200 reviews</option>
-          </select>
+          />
           <button className="primary" id="analyze-button" disabled={busy}>
             {busy ? (
-              "Importing…"
+              "Starting…"
             ) : (
               <>
-                Import reviews <span>↗</span>
+                Analyse reviews <span>↗</span>
               </>
             )}
           </button>
         </div>
         <div className="form-footer">
           <span id="form-note">◉ Google Play · English · United Kingdom</span>
-          <span>20–200 latest reviews per import</span>
+          <span>Latest reviews first</span>
         </div>
         {error && (
           <p id="form-error" role="alert">

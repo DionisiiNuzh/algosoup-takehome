@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { loadState, saveState } from "../lib/storage";
-import { importReviews } from "../lib/api";
+import {
+  startAnalysis,
+  getAnalysis,
+  resumeAnalysis,
+  saveCategoryTask,
+} from "../lib/api";
+import type {
+  CategorisationResult,
+  CategoryTask,
+} from "../../types/categories";
 import type { Analysis, AnalysisPhase, Issue, Task } from "../types";
 export function taskFor(analysis: Analysis, issue: Issue): Task {
   return (
@@ -19,6 +28,56 @@ export function useAnalysis() {
   );
   const [error, setError] = useState("");
   const [storageAvailable, setStorageAvailable] = useState(true);
+  function acceptResult(result: CategorisationResult) {
+    const { imported, ...categorisation } = result;
+    const analysis: Analysis = {
+      url: `https://play.google.com/store/apps/details?id=${encodeURIComponent(imported.appId)}`,
+      app: imported.appId,
+      count: imported.fetchedCount,
+      imported,
+      tasks: {},
+      categorisation,
+    };
+    setSaved((s) => ({
+      history: [analysis, ...s.history.filter((a) => a.url !== analysis.url)],
+      selectedUrl: analysis.url,
+    }));
+  }
+  const analysisId = current?.categorisation?.id;
+  const analysisStatus = current?.categorisation?.status;
+  useEffect(() => {
+    if (!analysisId) return;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    async function refresh() {
+      try {
+        const result = await getAnalysis(analysisId!, controller.signal);
+        if (controller.signal.aborted) return;
+        const { imported, ...categorisation } = result;
+        setSaved((s) => ({
+          ...s,
+          history: s.history.map((a) =>
+            a.categorisation?.id === result.id
+              ? { ...a, imported, categorisation }
+              : a,
+          ),
+        }));
+        setError("");
+        if (result.status === "running") timer = setTimeout(refresh, 1500);
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        setError(
+          err instanceof Error ? err.message : "Could not refresh analysis.",
+        );
+        timer = setTimeout(refresh, 5000);
+      }
+    }
+    void refresh();
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [analysisId, analysisStatus]);
   const activeRequest = useRef<AbortController | null>(null);
   const busy = useRef(false);
   useEffect(() => {
@@ -40,7 +99,9 @@ export function useAnalysis() {
         url.hostname !== "play.google.com" ||
         url.pathname !== "/store/apps/details" ||
         !url.searchParams.get("id") ||
-        ![20, 50, 100, 200].includes(count)
+        !Number.isInteger(count) ||
+        count < 1 ||
+        count > 200
       )
         throw new Error();
     } catch {
@@ -56,26 +117,16 @@ export function useAnalysis() {
     const controller = new AbortController();
     activeRequest.current = controller;
     try {
-      const imported = await importReviews(url.href, count, controller.signal);
+      const result = await startAnalysis(url.href, count, controller.signal);
       if (controller.signal.aborted) return;
-      const analysis: Analysis = {
-        url: `https://play.google.com/store/apps/details?id=${encodeURIComponent(imported.appId)}`,
-        app: imported.appId,
-        count: imported.fetchedCount,
-        imported,
-        tasks: {},
-      };
-      setSaved((s) => ({
-        history: [analysis, ...s.history.filter((a) => a.url !== analysis.url)],
-        selectedUrl: analysis.url,
-      }));
+      acceptResult(result);
       setPhase("success");
     } catch (error) {
       if (controller.signal.aborted) return;
       setError(
         error instanceof Error
           ? error.message
-          : "Could not import reviews. Please try again.",
+          : "Could not start analysis. Please try again.",
       );
       setPhase("error");
     } finally {
@@ -113,7 +164,38 @@ export function useAnalysis() {
       ),
     }));
   }
+  async function resume() {
+    if (!analysisId) return;
+    try {
+      acceptResult(await resumeAnalysis(analysisId));
+      setError("");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not resume analysis.",
+      );
+    }
+  }
+  async function updateCategoryTask(categoryId: string, task: CategoryTask) {
+    if (!analysisId) throw new Error("No analysis selected.");
+    await saveCategoryTask(analysisId, categoryId, task);
+    setSaved((s) => ({
+      ...s,
+      history: s.history.map((a) =>
+        a.categorisation?.id === analysisId
+          ? {
+              ...a,
+              categorisation: {
+                ...a.categorisation,
+                tasks: { ...a.categorisation.tasks, [categoryId]: task },
+              },
+            }
+          : a,
+      ),
+    }));
+  }
   return {
+    resume,
+    updateCategoryTask,
     current,
     history: saved.history,
     phase,
