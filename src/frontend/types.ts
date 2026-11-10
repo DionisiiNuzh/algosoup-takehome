@@ -24,20 +24,4 @@ export interface SavedState {
   selectedUrl: string | null;
 }
 export type AnalysisPhase = "idle" | "loading" | "success" | "error";
-export interface Review {
-  reviewId: string;
-  appId: string;
-  text: string;
-  rating: number | null;
-  reviewedAt: string | null;
-  sourceUrl: string | null;
-}
-export interface ReviewImport {
-  appId: string;
-  language: string;
-  country: string;
-  requestedCount: number;
-  fetchedCount: number;
-  fetchedAt: string;
-  reviews: Review[];
-}
+export type { Review, ReviewImport } from "../types/reviews";

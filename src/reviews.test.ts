@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchLatestReviews, parseAppId, ReviewInputError } from './reviews.js';
-import worker from './worker.js';
+import { fetchLatestReviews, parseAppId, ReviewInputError } from './reviews.ts';
+import type { ReviewScraper } from './reviews.ts';
+import worker from './worker.ts';
 
 test('accepts Play URLs and rejects other hosts before fetching', async () => {
   assert.equal(parseAppId('https://play.google.com/store/apps/details?id=com.test.app&hl=en'), 'com.test.app');
@@ -12,14 +13,13 @@ test('accepts Play URLs and rejects other hosts before fetching', async () => {
 });
 
 test('fetches newest reviews, normalizes evidence and counts unique nonempty reviews', async () => {
-  const scraper = {
-    sort: { NEWEST: 2 },
+  const scraper: ReviewScraper = {
     async reviews(options) {
       assert.equal(options.sort, 2);
       assert.equal(options.num, 20);
       assert.equal(options.lang, 'en');
       assert.equal(options.country, 'gb');
-      const transport = { cookieJar: {} };
+      const transport: { cookieJar?: unknown } = { cookieJar: {} };
       options.requestOptions.hooks.beforeRequest[0](transport);
       assert.equal(transport.cookieJar, undefined);
       return { data: [
@@ -38,13 +38,14 @@ test('fetches newest reviews, normalizes evidence and counts unique nonempty rev
 });
 
 test('API rejects incorrect methods, malformed bodies and invalid input', async () => {
-  for (const [method, body, expected] of [
+  const cases: [string, string | undefined, number][] = [
     ['GET', undefined, 405],
     ['POST', '{', 400],
     ['POST', 'null', 400],
     ['POST', JSON.stringify({ app: 'invalid' }), 400],
-  ]) {
-    const response = await worker.fetch(new Request('https://example.test/api/reviews', { method, body }), {});
+  ];
+  for (const [method, body, expected] of cases) {
+    const response = await worker.fetch(new Request('https://example.test/api/reviews', { method, body }), { ASSETS: { fetch: async () => { throw new Error('Unexpected asset request'); } } });
     assert.equal(response.status, expected);
   }
 });

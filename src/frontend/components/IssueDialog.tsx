@@ -37,7 +37,11 @@ export function IssueDialog({
       ref={dialog}
       id="issue-dialog"
       aria-labelledby="detail-title"
-      onClose={onClose}
+      onClose={() => {
+        // Strict Mode closes and reopens the dialog during effect verification.
+        // Ignore that queued close event if the dialog is already open again.
+        if (!dialog.current?.open) onClose();
+      }}
       onClick={(event) => {
         if (event.target !== event.currentTarget) return;
         const r = event.currentTarget.getBoundingClientRect();

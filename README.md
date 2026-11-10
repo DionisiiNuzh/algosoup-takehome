@@ -3,7 +3,7 @@
 Product requirements: [PRODUCT_SPEC.md](PRODUCT_SPEC.md).
 
 This repository contains the deployment scaffold and a working review-fetch API, not the completed app.
-Cloudflare Workers serves the Vite build in `dist/` and routes `/api/*` to `src/worker.js`.
+Cloudflare Workers serves the Vite build in `dist/` and routes `/api/*` to `src/worker.ts`.
 The health endpoint is `/api/health`. Unknown API routes return JSON 404s.
 
 ## Fetch latest Google Play reviews
@@ -25,13 +25,20 @@ author, and developer reply where available. Empty comments and duplicate IDs
 are excluded; actual count can be lower than requested. Invalid input returns
 400, unsupported methods 405, and upstream failures 502.
 
-The reusable function is `fetchLatestReviews({ app, count })` in `src/reviews.js`.
+The reusable function is `fetchLatestReviews({ app, count })` in `src/reviews.ts`.
+Shared `Review`, `ReviewRating`, `ReviewImport`, and `FetchReviewsInput` types live
+in `src/types/reviews.ts`; frontend code re-exports the same review types.
+The fetcher returns `Promise<ReviewImport>`. Import shared types with `import type`
+so they add no runtime dependencies to frontend code.
 It uses `google-play-scraper` with bounded request timeouts and retries disabled.
 A transport hook disables got's cookie jar to avoid incompatible Set-Cookie
 handling in the Workers HTTP shim. A local Worker smoke test fetched 200 unique
 reviews across pages for the reference app. Production deployment remains untested.
 
 Run `npm test` for validation, normalization, deduplication, and API error checks.
+Tests run TypeScript through Node's type stripping. `npm run check` runs strict
+type checking for both the frontend and Worker; the Worker configuration is
+`tsconfig.worker.json`. Wrangler bundles `src/worker.ts` for deployment.
 The endpoint currently returns data without storing it. Recommended next step:
 connect a Cloudflare D1 database for imports, reviews, issues, and task state.
 Keep import-to-review links so counts remain tied to each imported sample.
@@ -50,7 +57,7 @@ npm run dev:worker
 Run `npm run dev` in a second terminal for the Vite frontend with hot reload.
 Vite proxies `/api/*` to the local Worker at port 8787.
 
-Implement server routes in `src/worker.js`. The React + TypeScript frontend is
+Implement server routes in `src/worker.ts`. The React + TypeScript frontend is
 in `src/frontend/`, with components, workflow hooks, API/storage helpers, shared
 types, demo fixtures, and CSS in separate files. `index.html` is the Vite entry.
 `npm run build` checks frontend types and builds assets into `dist/`.
